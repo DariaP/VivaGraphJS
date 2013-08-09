@@ -11,6 +11,7 @@ Viva.Graph.Physics = Viva.Graph.Physics || {};
 Viva.Graph.Physics.forceSimulator = function (forceIntegrator) {
     var integrator = forceIntegrator,
         bodies = [], // Bodies in this simulation.
+        staticBodies = [], // Static bodies in this simulation.
         springs = [], // Springs in this simulation.
         bodyForces = [], // Forces acting on bodies.
         springForces = []; // Forces acting on springs.
@@ -55,6 +56,16 @@ Viva.Graph.Physics.forceSimulator = function (forceIntegrator) {
                     bodyForces[j].update(body);
                 }
             }
+            i = staticBodies.length;
+            while (i--) {
+                body = staticBodies[i];
+                body.force.x = 0;
+                body.force.y = 0;
+
+                for (j = 0; j < bodyForces.length; j++) {
+                    bodyForces[j].update(body);
+                }
+            }
 
             // Accumulate forces acting on springs.
             for (i = 0; i < springs.length; ++i) {
@@ -88,6 +99,18 @@ Viva.Graph.Physics.forceSimulator = function (forceIntegrator) {
             }
 
             bodies.push(body); // TODO: could mark simulator as dirty...
+
+            return body;
+        },
+
+        addStaticBody : function (body) {
+            if (!body) {
+                throw {
+                    message : 'Cannot add null body to force simulator'
+                };
+            }
+
+            staticBodies.push(body); // TODO: could mark simulator as dirty...
 
             return body;
         },

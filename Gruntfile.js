@@ -35,6 +35,7 @@ module.exports = function (grunt) {
             "Physics/forceSimulator.js",
             "Layout/forceDirected.js",
             "Layout/constant.js",
+            "Layout/forceDirectedCircular.js",
             "View/renderer.js"
         ],
         extra: [
