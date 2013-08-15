@@ -21,6 +21,7 @@ module.exports = function (grunt) {
             "Input/domInputManager.js",
             "Input/spatialIndex.js", // TODO: Do I need this for SVG?
             "Utils/timer.js",
+            "Utils/heap.js",
             "Utils/geom.js",
 
             "Core/primitives.js",
