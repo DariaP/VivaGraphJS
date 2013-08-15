@@ -1,4 +1,5 @@
 /*jshint unused: false*/
+/*jshint -W083 */
 
 Viva.Graph.Layout = Viva.Graph.Layout || {};
 Viva.Graph.Layout.greedyCircular = function(graph, settings) {
@@ -17,47 +18,62 @@ Viva.Graph.Layout.greedyCircular = function(graph, settings) {
         };
     }
 
-    // Select next node to put on layout
-    // Selection node with the least number of unplaced neighbors,
-    // ties are broken in favor of vertices with more placed neighbors.
-    // both nodesInLayout and unplacedNodes have properties:
-    // 'placed' : true or false,
-    // 'neighbors' : references to node structures of neighbors
-    // 'placedNodesNumber'
-    // 'unplacedNodesNumber'
-    var greedyPickNode = function(nodesInLayout, unplacedNodes) {
+    getPickNodeFunction = function(nodes) {
 
-        var nextUnplacedNode,
-            i, j,
-            pickedNode = unplacedNodes[0],
-            pickedNodei = 0;
-
-        // Select node
-        for (i = 0 ; i < unplacedNodes ; ++i) {
-            nextUnplacedNode = unplacedNodes;
-            for (j = 0 ; j < nextUnplacedNode.neighbors.length ; ++j) {
-                if (nextUnplacedNode.unplacedNodesNumber < pickedNode.unplacedNodesNumber ) {
-                    pickedNode = nextUnplacedNode;
-                    pickedNodei = i;
-                } else {
-                    if (nextUnplacedNode.unplacedNodesNumber === pickedNode.unplacedNodesNumber &&
-                        nextUnplacedNode.placedNodesNumber > pickedNode.placedNodesNumber) {
-                        pickedNode = nextUnplacedNode;
-                        pickedNodei = i;
-                    }
-                }
+        // elements are compared according to the number of unplaced neighbors
+        // (choose one with the lower number)
+        // ties are broken according to the number of placed neighbors.
+        // (choose one with the higher number)
+        var compareHeapElements = function(element1, element2) {
+            if (element1.unplacedNodesNumber > element2.unplacedNodesNumber ) {
+                return 1;
             }
+
+            if (element1.unplacedNodesNumber < element2.unplacedNodesNumber ) {
+                return -1;
+            }
+
+            // element1.unplacedNodesNumber === element2.unplacedNodesNumber
+
+            if (element1.placedNodesNumber < element2.placedNodesNumber) {
+                return 1;
+            }
+
+            if (element1.placedNodesNumber > element2.placedNodesNumber) {
+                return -1;
+            }
+
+            return 0;
+        },
+        heap = Viva.Graph.Utils.heap(compareHeapElements),
+        heapElement;
+
+        for (var i = 0 ; i < nodes.length ; ++i) {
+            nodes[i].neighbors = [];
+            nodes[i].placedNodesNumber = 0;
+
+            graph.forEachLinkedNode(
+                nodes[i].id,
+                function(linkedNode) {
+                    nodes[i].neighbors.push(linkedNode);
+                }
+            );
+
+            nodes[i].unplacedNodesNumber = nodes[i].neighbors.length;
+
+            heap.push(nodes[i]);
         }
+        return function() {
+            var pickedNode = heap.pop();
 
-        // Update nodes' properties placedNodesNumber and unplacedNodesNumber
-        for (i = 0 ; i < pickedNode.neighbors.length ; ++i) {
-            pickedNode.neighbors[i].placedNodesNumber++;
-            pickedNode.neighbors[i].unplacedNodesNumber--;
-        }
+            for (i = 0 ; i < pickedNode.neighbors.length ; ++i) {
+                pickedNode.neighbors[i].placedNodesNumber++;
+                pickedNode.neighbors[i].unplacedNodesNumber--;
+                heap.update(pickedNode.neighbors[i]);
+            }
 
-        unplacedNodes.splice(pickedNodei, 1);
-
-        return pickedNode;
+            return pickedNode;
+        };
     },
 
     // Select side (left or right) 
@@ -68,21 +84,29 @@ Viva.Graph.Layout.greedyCircular = function(graph, settings) {
     greedyAddNode = function(nodesInLayout, newNode) {
         var leftCrossingsNumber = 0,
             rightCrossingsNumber = 0,
-            leftNeighborsNumber = newNode.placedNodesNumber,
-            rightNeighborsNumber = 0,
+            leftNeighborsNumber = 0,
+            rightNeighborsNumber = newNode.placedNodesNumber,
             nextNode,
             i, j;
 
+        console.log('adding ' + newNode.id);
+
+        for (i = 0 ; i < nodesInLayout.length ; ++i) {
+            nodesInLayout[i].currentNeighbor = false;
+        }
+
+        for (j = 0 ; j < newNode.neighbors.length ; ++j) {
+            newNode.neighbors[j].currentNeighbor = true;
+        }
+
         for (i = 0 ; i < nodesInLayout.length ; ++i) {
             nextNode = nodesInLayout[i];
-            for (j = 0 ; j < newNode.neighbors.length ; ++j) {
-                if (newNode.neighbors[j].id === nextNode.id) {
-                    leftNeighborsNumber--;
-                    rightNeighborsNumber++;
-                }
-                leftCrossingsNumber += leftNeighborsNumber * nextNode.unplacedNodesNumber;
-                rightCrossingsNumber += rightNeighborsNumber * nextNode.unplacedNodesNumber;
+            if (nextNode.currentNeighbor === true) {
+                rightNeighborsNumber--;
+                leftNeighborsNumber++;
             }
+            leftCrossingsNumber += rightNeighborsNumber * nextNode.unplacedNodesNumber;
+            rightCrossingsNumber += leftNeighborsNumber * nextNode.unplacedNodesNumber;
         }
 
         if (leftCrossingsNumber < rightCrossingsNumber) {
@@ -269,28 +293,20 @@ Viva.Graph.Layout.greedyCircular = function(graph, settings) {
             unplacedNodes = [],
             pickedNode,
             position,
-            i;
+            i,
+            nodesNumber = graph.getNodesCount();
 
         graph.forEachNode(
             function(node) {
-                node.placed = false;
-                node.neighbors = [];
-                graph.forEachLinkedNode(
-                    node.id,
-                    function(linkedNode) {
-                        node.neighbors.push(linkedNode);
-                    }
-                );
-                node.placedNodesNumber = 0;
-                node.unplacedNodesNumber = node.neighbors.length;
+                node.position = {x : settings.center.x, y : settings.center.y};
                 unplacedNodes.push(node);
             }
         );
 
-        // Select initial sequence
-        while(unplacedNodes.length !== 0) {
-            console.log('adding ' + nodesInLayout.length);
-            pickedNode = greedyPickNode(nodesInLayout, unplacedNodes);
+        var pickNode = getPickNodeFunction(unplacedNodes);
+
+        while(nodesInLayout.length !== nodesNumber) {
+            pickedNode = pickNode();
             greedyAddNode(nodesInLayout, pickedNode);
         }
 
@@ -301,7 +317,6 @@ Viva.Graph.Layout.greedyCircular = function(graph, settings) {
         }
 
         // Circular cifting improvement
-        //nodesInLayout.length
         for(i = 0, position = 0 ; i < nodesInLayout.length ; ++i) {
             console.log('sifting ' + i);
             while(nodesInLayout[position].sifted === true) {
