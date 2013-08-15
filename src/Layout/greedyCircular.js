@@ -18,7 +18,7 @@ Viva.Graph.Layout.greedyCircular = function(graph, settings) {
         };
     }
 
-    getPickNodeFunction = function(nodes) {
+    var getPickNodeFunction = function(nodes) {
 
         // elements are compared according to the number of unplaced neighbors
         // (choose one with the lower number)
