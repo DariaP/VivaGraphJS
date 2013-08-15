@@ -4,6 +4,17 @@
 Viva.Graph.Layout = Viva.Graph.Layout || {};
 Viva.Graph.Layout.greedyCircular = function(graph, settings) {
 
+    if (!graph) {
+        throw {
+            message: 'Graph structure cannot be undefined'
+        };
+    }
+
+    settings = Viva.lazyExtend(settings, {
+        radius: graph.getNodesCount() * 5,
+        center: {x : 0, y : 0},
+    });
+
     var graphRect = {
             x1 : settings.radius,
             y1 : settings.radius,
@@ -11,12 +22,6 @@ Viva.Graph.Layout.greedyCircular = function(graph, settings) {
             y2 : settings.radius
         },
         nodesPositions = [];
-
-    if (!graph) {
-        throw {
-            message: 'Graph structure cannot be undefined'
-        };
-    }
 
     var getPickNodeFunction = function(nodes) {
 
